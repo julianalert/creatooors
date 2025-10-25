@@ -125,7 +125,7 @@ export default function HeroHome() {
                   </div>
                   <button
                     type="submit"
-                    className="btn group w-full bg-linear-to-t from-blue-600 to-blue-500 bg-[length:100%_100%] bg-[bottom] text-white shadow-sm hover:bg-[length:100%_150%] sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn group w-full bg-linear-to-t from-blue-600 to-blue-500 bg-[length:100%_100%] bg-[bottom] text-white shadow-sm hover:bg-[length:100%_150%] sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     disabled={isLoading}
                   >
                     <span className="relative inline-flex items-center">
