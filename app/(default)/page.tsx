@@ -15,12 +15,12 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <BusinessCategories />
+       {/* <BusinessCategories />
       <LargeTestimonial />
       <FeaturesPlanet />
       <Features />
-      <TestimonialsCarousel />
-      <Cta />
+      <TestimonialsCarousel /> 
+      <Cta /> */}
     </>
   );
 }
