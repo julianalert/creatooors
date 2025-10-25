@@ -40,9 +40,29 @@ Your application now integrates with Supabase to store creator profile URLs in t
    CREATE TABLE creator (
      id BIGSERIAL PRIMARY KEY,
      url TEXT NOT NULL,
+     platform TEXT,
+     profile_data JSONB,
+     scraped_at TIMESTAMP WITH TIME ZONE,
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
+   
+   -- Add indexes for better performance
+   CREATE INDEX idx_creator_platform ON creator(platform);
+   CREATE INDEX idx_creator_scraped_at ON creator(scraped_at);
+   ```
+   
+   **Migration Script**: If you already have the basic table, run the migration script:
+   ```sql
+   -- Add new columns to existing table
+   ALTER TABLE creator 
+   ADD COLUMN platform TEXT,
+   ADD COLUMN profile_data JSONB,
+   ADD COLUMN scraped_at TIMESTAMP WITH TIME ZONE;
+   
+   -- Add indexes
+   CREATE INDEX idx_creator_platform ON creator(platform);
+   CREATE INDEX idx_creator_scraped_at ON creator(scraped_at);
    ```
 
 ### **How It Works Now:**
@@ -56,13 +76,16 @@ Your application now integrates with Supabase to store creator profile URLs in t
 ### **Database Schema:**
 - `id` (int8): Auto-generated primary key from Supabase
 - `url` (text): The profile URL submitted by the user
+- `platform` (text): Social media platform (instagram, tiktok, youtube)
+- `profile_data` (jsonb): Scraped profile data from ScrapeCreators API
+- `scraped_at` (timestamp): When profile data was last scraped
 - `created_at`: Timestamp when record was created
 - `updated_at`: Timestamp when record was last updated
 
 ### **Next Steps:**
+- Run the database migration script to add the new fields
 - Add your Supabase credentials to `.env.local`
 - Test the integration by submitting a profile URL
-- Consider adding more fields to the `creator` table (e.g., platform, analysis_status)
-- Implement real social media API integration for actual data analysis
+- The ScrapeCreators API integration is now fully implemented!
 
 The application is ready to use with Supabase! 🚀

@@ -9,6 +9,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface Creator {
   id: number;
   url: string;
+  platform?: 'instagram' | 'tiktok' | 'youtube';
+  profile_data?: any; // JSONB field for scraped profile data
+  scraped_at?: string;
   created_at?: string;
   updated_at?: string;
 }
