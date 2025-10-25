@@ -60,15 +60,11 @@ function extractUsernameFromUrl(url: string, platform: string): string | null {
 
 // ScrapeCreators API functions
 async function scrapeTikTokProfile(username: string) {
-  const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/tiktok/profile`, {
-    method: 'POST',
+  const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/tiktok/profile?handle=${encodeURIComponent(username)}`, {
+    method: 'GET',
     headers: {
       'X-API-Key': SCRAPE_CREATORS_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      handle: username
-    })
+    }
   })
   
   if (!response.ok) {
@@ -100,15 +96,11 @@ async function scrapeInstagramProfile(username: string) {
 }
 
 async function scrapeYouTubeChannel(username: string) {
-  const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/youtube/channel`, {
-    method: 'POST',
+  const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/youtube/channel?handle=${encodeURIComponent(username)}`, {
+    method: 'GET',
     headers: {
       'X-API-Key': SCRAPE_CREATORS_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      handle: username
-    })
+    }
   })
   
   if (!response.ok) {
@@ -197,6 +189,7 @@ export async function POST(request: NextRequest) {
     } catch (scrapeErr) {
       scrapeError = scrapeErr instanceof Error ? scrapeErr.message : 'Unknown scraping error'
       console.error(`Failed to scrape ${platform} profile:`, scrapeErr)
+      
     }
 
     // Update creator record with scraped data if available
