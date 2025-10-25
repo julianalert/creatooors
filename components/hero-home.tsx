@@ -1,10 +1,57 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import PageIllustration from "@/components/page-illustration";
 import Avatar01 from "@/public/images/insta.jpg";
 import Avatar02 from "@/public/images/tiktok.png";
 import Avatar03 from "@/public/images/youtube.png";
 
 export default function HeroHome() {
+  const [profileUrl, setProfileUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!profileUrl.trim()) {
+      alert("Please enter a profile URL");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Call your server API to save creator data
+      const response = await fetch('/api/creator', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: profileUrl.trim() }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save profile data');
+      }
+
+      // Use the server-returned ID as the report ID
+      const reportId = result.id;
+      
+      // Navigate to the report page with the ID
+      router.push(`/report/${reportId}?url=${encodeURIComponent(profileUrl)}`);
+    } catch (error) {
+      console.error("Error generating report:", error);
+      alert(`Error generating report: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <section className="relative">
       <PageIllustration />
@@ -58,31 +105,37 @@ export default function HeroHome() {
                 A detailed report that turns creator data into personalized growth recommendations and viral insights.
               </p>
               <div className="relative before:absolute before:inset-0 before:border-y before:[border-image:linear-gradient(to_right,transparent,--theme(--color-slate-300/.8),transparent)1]">
-                <div
+                <form
                   className="relative mx-auto max-w-xs sm:flex sm:max-w-none sm:justify-center"
                   data-aos="zoom-y-out"
                   data-aos-delay={450}
+                  onSubmit={handleSubmit}
                 >
                   <div className="mb-4 w-full sm:mb-0 sm:mr-4 sm:max-w-[360px]">
                     <input
-                      type="email"
+                      type="url"
                       className="form-input w-full"
                       placeholder="Enter your profile url (instagram, tiktok or youtube)"
-                      aria-label="Your email"
+                      aria-label="Profile URL"
+                      value={profileUrl}
+                      onChange={(e) => setProfileUrl(e.target.value)}
+                      disabled={isLoading}
+                      required
                     />
                   </div>
-                  <a
-                    className="btn group w-full bg-linear-to-t from-blue-600 to-blue-500 bg-[length:100%_100%] bg-[bottom] text-white shadow-sm hover:bg-[length:100%_150%] sm:w-auto"
-                    href="#0"
+                  <button
+                    type="submit"
+                    className="btn group w-full bg-linear-to-t from-blue-600 to-blue-500 bg-[length:100%_100%] bg-[bottom] text-white shadow-sm hover:bg-[length:100%_150%] sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
                   >
                     <span className="relative inline-flex items-center">
-                      Get my free report{" "}
+                      {isLoading ? "Generating..." : "Get my free report"}{" "}
                       <span className="ml-1 tracking-normal text-blue-300 transition-transform group-hover:translate-x-0.5">
                         -&gt;
                       </span>
                     </span>
-                  </a>
-                </div>
+                  </button>
+                </form>
               </div>
             </div>
           </div>
