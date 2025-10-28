@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Home - Simple",
-  description: "Page description",
+  title: "Go viral. Again and again.",
+  description: "Our AI scans your content, finds patterns behind your top posts, and tells you exactly what to post next to accelerate your growth.",
 };
 
 import Hero from "@/components/hero-home";

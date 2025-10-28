@@ -145,11 +145,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate URL format
-    const urlPattern = /^https?:\/\/(www\.)?(instagram\.com|tiktok\.com|youtube\.com)/
+    // Validate URL format - Only Instagram is supported
+    const urlPattern = /^https?:\/\/(www\.)?instagram\.com/
     if (!urlPattern.test(url)) {
       return NextResponse.json(
-        { error: 'Invalid URL. Must be Instagram, TikTok, or YouTube profile URL' },
+        { error: 'Only Instagram URLs are supported at this time. Please provide a valid Instagram profile URL.' },
         { status: 400 }
       )
     }
@@ -157,9 +157,9 @@ export async function POST(request: NextRequest) {
     const trimmedUrl = url.trim()
     const platform = getPlatformFromUrl(trimmedUrl)
     
-    if (!platform) {
+    if (platform !== 'instagram') {
       return NextResponse.json(
-        { error: 'Unsupported platform. Only Instagram, TikTok, and YouTube are supported' },
+        { error: 'Only Instagram URLs are supported at this time. Please provide a valid Instagram profile URL.' },
         { status: 400 }
       )
     }

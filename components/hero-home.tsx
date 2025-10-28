@@ -11,13 +11,15 @@ import Avatar03 from "@/public/images/youtube.png";
 export default function HeroHome() {
   const [profileUrl, setProfileUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
     
     if (!profileUrl.trim()) {
-      alert("Please enter a profile URL");
+      setError("Please enter a profile URL");
       return;
     }
 
@@ -36,7 +38,9 @@ export default function HeroHome() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to save profile data');
+        setError(result.error || 'Failed to save profile data');
+        setIsLoading(false);
+        return;
       }
 
       // Use the server-returned ID as the report ID
@@ -46,7 +50,7 @@ export default function HeroHome() {
       router.push(`/report/${reportId}?url=${encodeURIComponent(profileUrl)}`);
     } catch (error) {
       console.error("Error generating report:", error);
-      alert(`Error generating report: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      setError(error instanceof Error ? error.message : 'Failed to save profile data. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +76,7 @@ export default function HeroHome() {
                   height={32}
                   alt="Avatar 01"
                 />
-                <Image
+                {/* <Image
                   className="box-content rounded-full border-2 border-gray-50"
                   src={Avatar02}
                   width={32}
@@ -85,7 +89,7 @@ export default function HeroHome() {
                   width={32}
                   height={32}
                   alt="Avatar 02"
-                />
+                /> */}
               </div>
             </div>
             <h1
@@ -114,11 +118,14 @@ export default function HeroHome() {
                   <div className="mb-4 w-full sm:mb-0 sm:mr-4 sm:max-w-[360px]">
                     <input
                       type="url"
-                      className="form-input w-full"
-                      placeholder="Enter your profile url (instagram, tiktok or youtube)"
+                      className={`form-input w-full ${error ? 'border-red-500' : ''}`}
+                      placeholder="Enter your Instagram profile url"
                       aria-label="Profile URL"
                       value={profileUrl}
-                      onChange={(e) => setProfileUrl(e.target.value)}
+                      onChange={(e) => {
+                        setProfileUrl(e.target.value);
+                        setError(""); // Clear error when user starts typing
+                      }}
                       disabled={isLoading}
                       required
                     />
@@ -136,6 +143,9 @@ export default function HeroHome() {
                     </span>
                   </button>
                 </form>
+                {error && (
+                  <p className="mt-3 text-center text-sm text-red-600">{error}</p>
+                )}
               </div>
             </div>
           </div>
