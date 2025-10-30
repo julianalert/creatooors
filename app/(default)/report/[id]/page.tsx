@@ -33,12 +33,12 @@ export default function DynamicReport() {
   } | null>(null);
 
   const [metrics, setMetrics] = useState<{
-    totalVideos: number;
+    totalPublications: number;
     engagementRatePct: number | null;
     totalViews: number;
     totalLikes: number;
     totalComments: number;
-    totalBookmarks: number;
+    totalShares: number;
   } | null>(null);
 
   const reportId = parseInt(params.id as string);
@@ -152,21 +152,17 @@ export default function DynamicReport() {
   }
 
   function computeMetrics(posts: any[]) {
-    let totalVideos = 0;
+    let totalPublications = 0;
     let totalViews = 0;
     let totalLikes = 0;
     let totalComments = 0;
     let totalBookmarks = 0;
+    let totalShares = 0;
     let viewBearingPosts = 0;
 
     for (const p of posts) {
-      const isVideo = Boolean(
-        p?.is_video ||
-        p?.media_type === 'VIDEO' ||
-        p?.product_type === 'clips' ||
-        p?.__typename === 'GraphVideo'
-      );
-      if (isVideo) totalVideos += 1;
+      // Count all publications (posts), not just videos
+      totalPublications += 1;
 
       const views =
         Number(p?.view_count) ||
@@ -194,6 +190,15 @@ export default function DynamicReport() {
         Number(p?.bookmark_count) ||
         Number(p?.bookmarks) || 0;
       totalBookmarks += bookmarks;
+
+      const shares =
+        Number(p?.share_count) ||
+        Number(p?.shares) ||
+        Number(p?.reshare_count) ||
+        Number(p?.repost_count) ||
+        Number(p?.stats?.shareCount) ||
+        Number(p?.shareCount) || 0;
+      totalShares += shares;
     }
 
     let engagementRatePct: number | null = null;
@@ -206,12 +211,12 @@ export default function DynamicReport() {
     }
 
     return {
-      totalVideos,
+      totalPublications,
       engagementRatePct,
       totalViews,
       totalLikes,
       totalComments,
-      totalBookmarks,
+      totalShares,
     };
   }
 
@@ -250,14 +255,14 @@ export default function DynamicReport() {
           {/* Metrics Dashboard */}
           {metrics && (
             <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              <StatCard title="Total videos" value={metrics.totalVideos.toLocaleString()} />
+              <StatCard title="Total publications" value={metrics.totalPublications.toLocaleString()} />
               <StatCard title="Engagement rate" value={
                 metrics.engagementRatePct !== null ? `${metrics.engagementRatePct.toFixed(2)}%` : 'N/A'
               } />
               <StatCard title="Total views" value={metrics.totalViews.toLocaleString()} />
               <StatCard title="Total likes" value={metrics.totalLikes.toLocaleString()} />
               <StatCard title="Total comments" value={metrics.totalComments.toLocaleString()} />
-              <StatCard title="Total bookmarks" value={metrics.totalBookmarks.toLocaleString()} />
+              <StatCard title="Total shares" value={metrics.totalShares.toLocaleString()} />
             </div>
           )}
         </div>
