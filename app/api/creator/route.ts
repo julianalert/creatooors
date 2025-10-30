@@ -319,6 +319,7 @@ export async function GET(request: NextRequest) {
       url: data.url,
       platform: data.platform,
       profileData: data.profile_data,
+      postsData: data.posts_data,
       scrapedAt: data.scraped_at,
       createdAt: data.created_at
     })

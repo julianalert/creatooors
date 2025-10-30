@@ -32,6 +32,15 @@ export default function DynamicReport() {
     isVerified?: boolean;
   } | null>(null);
 
+  const [metrics, setMetrics] = useState<{
+    totalVideos: number;
+    engagementRatePct: number | null;
+    totalViews: number;
+    totalLikes: number;
+    totalComments: number;
+    totalBookmarks: number;
+  } | null>(null);
+
   const reportId = parseInt(params.id as string);
   const profileUrlParam = searchParams.get("url");
 
@@ -65,6 +74,12 @@ export default function DynamicReport() {
           const bio = user?.biography || user?.bio;
           const isVerified = Boolean(user?.is_verified);
           setProfileOverview({ avatarUrl, name, username, bio, isVerified });
+
+          // Compute metrics from posts_data
+          const postsData = creatorData?.postsData || {};
+          const posts = getPostsArray(postsData);
+          const computed = computeMetrics(posts);
+          setMetrics(computed);
 
           // Determine platform from stored creator URL or param fallback
           const storedUrl: string | undefined = creatorData?.url;
@@ -123,6 +138,83 @@ export default function DynamicReport() {
     }
   }, [reportId]);
 
+  // Try to normalize various possible post shapes
+  function getPostsArray(postsData: any): any[] {
+    if (!postsData) return [];
+    if (Array.isArray(postsData)) return postsData;
+    if (Array.isArray(postsData?.items)) return postsData.items;
+    if (Array.isArray(postsData?.data?.items)) return postsData.data.items;
+    if (Array.isArray(postsData?.edges)) return postsData.edges.map((e: any) => e?.node || e).filter(Boolean);
+    if (Array.isArray(postsData?.data?.edges)) return postsData.data.edges.map((e: any) => e?.node || e).filter(Boolean);
+    if (Array.isArray(postsData?.data?.posts)) return postsData.data.posts;
+    if (Array.isArray(postsData?.posts)) return postsData.posts;
+    return [];
+  }
+
+  function computeMetrics(posts: any[]) {
+    let totalVideos = 0;
+    let totalViews = 0;
+    let totalLikes = 0;
+    let totalComments = 0;
+    let totalBookmarks = 0;
+    let viewBearingPosts = 0;
+
+    for (const p of posts) {
+      const isVideo = Boolean(
+        p?.is_video ||
+        p?.media_type === 'VIDEO' ||
+        p?.product_type === 'clips' ||
+        p?.__typename === 'GraphVideo'
+      );
+      if (isVideo) totalVideos += 1;
+
+      const views =
+        Number(p?.view_count) ||
+        Number(p?.play_count) ||
+        Number(p?.video_view_count) ||
+        Number(p?.views) || 0;
+      if (views > 0) viewBearingPosts += 1;
+      totalViews += views;
+
+      const likes =
+        Number(p?.like_count) ||
+        Number(p?.edge_liked_by?.count) ||
+        Number(p?.likes) || 0;
+      totalLikes += likes;
+
+      const comments =
+        Number(p?.comment_count) ||
+        Number(p?.edge_media_to_comment?.count) ||
+        Number(p?.comments) || 0;
+      totalComments += comments;
+
+      const bookmarks =
+        Number(p?.saved_count) ||
+        Number(p?.save_count) ||
+        Number(p?.bookmark_count) ||
+        Number(p?.bookmarks) || 0;
+      totalBookmarks += bookmarks;
+    }
+
+    let engagementRatePct: number | null = null;
+    const totalEngagement = totalLikes + totalComments + totalBookmarks;
+    if (totalViews > 0) {
+      engagementRatePct = (totalEngagement / totalViews) * 100;
+    } else if (posts.length > 0) {
+      // Fallback: average per post (no views available)
+      engagementRatePct = (totalEngagement / posts.length) || 0;
+    }
+
+    return {
+      totalVideos,
+      engagementRatePct,
+      totalViews,
+      totalLikes,
+      totalComments,
+      totalBookmarks,
+    };
+  }
+
   const getPlatformFromUrl = (url: string): string => {
     if (url.includes("instagram.com")) return "Instagram";
     if (url.includes("tiktok.com")) return "TikTok";
@@ -155,30 +247,23 @@ export default function DynamicReport() {
             isVerified={profileOverview.isVerified}
             platform={reportData?.platform}
           />
+          {/* Metrics Dashboard */}
+          {metrics && (
+            <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <StatCard title="Total videos" value={metrics.totalVideos.toLocaleString()} />
+              <StatCard title="Engagement rate" value={
+                metrics.engagementRatePct !== null ? `${metrics.engagementRatePct.toFixed(2)}%` : 'N/A'
+              } />
+              <StatCard title="Total views" value={metrics.totalViews.toLocaleString()} />
+              <StatCard title="Total likes" value={metrics.totalLikes.toLocaleString()} />
+              <StatCard title="Total comments" value={metrics.totalComments.toLocaleString()} />
+              <StatCard title="Total bookmarks" value={metrics.totalBookmarks.toLocaleString()} />
+            </div>
+          )}
         </div>
       )}
       {reportData.status === "completed" && reportData.analysis && (
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Followers</h3>
-              <p className="text-3xl font-bold text-blue-600">
-                {reportData.analysis.followers.toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Engagement Rate</h3>
-              <p className="text-3xl font-bold text-green-600">
-                {reportData.analysis.engagement}%
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Platform</h3>
-              <p className="text-3xl font-bold text-purple-600">
-                {reportData.platform}
-              </p>
-            </div>
-          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white rounded-lg shadow-lg p-6">
@@ -212,5 +297,14 @@ export default function DynamicReport() {
       )}
       {/* <AppList /> */}
     </>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-gray-900 text-white p-5 shadow-md border border-gray-800">
+      <div className="text-sm text-gray-300">{title}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+    </div>
   );
 }
