@@ -33,10 +33,10 @@ export default function DynamicReport() {
   } | null>(null);
 
   const reportId = parseInt(params.id as string);
-  const profileUrl = searchParams.get("url");
+  const profileUrlParam = searchParams.get("url");
 
   useEffect(() => {
-    if (reportId && profileUrl) {
+    if (reportId) {
       // Fetch creator data from Supabase and generate report
       const generateReport = async () => {
         setIsLoading(true);
@@ -66,13 +66,15 @@ export default function DynamicReport() {
           const isVerified = Boolean(user?.is_verified);
           setProfileOverview({ avatarUrl, name, username, bio, isVerified });
 
-          // Determine platform from URL
-          const platform = getPlatformFromUrl(profileUrl);
+          // Determine platform from stored creator URL or param fallback
+          const storedUrl: string | undefined = creatorData?.url;
+          const platform = (creatorData?.platform as string) || (storedUrl ? getPlatformFromUrl(storedUrl) : (profileUrlParam ? getPlatformFromUrl(profileUrlParam) : "Unknown"));
+          const effectiveProfileUrl = storedUrl || profileUrlParam || "";
           
           // Initial report data
           const initialData: ReportData = {
             id: reportId,
-            profileUrl,
+            profileUrl: effectiveProfileUrl,
             platform,
             status: "analyzing"
           };
@@ -109,8 +111,8 @@ export default function DynamicReport() {
           console.error("Error generating report:", error);
           setReportData({
             id: reportId,
-            profileUrl,
-            platform: getPlatformFromUrl(profileUrl),
+            profileUrl: "",
+            platform: "Unknown",
             status: "error"
           });
           setIsLoading(false);
@@ -119,7 +121,7 @@ export default function DynamicReport() {
       
       generateReport();
     }
-  }, [reportId, profileUrl]);
+  }, [reportId]);
 
   const getPlatformFromUrl = (url: string): string => {
     if (url.includes("instagram.com")) return "Instagram";
