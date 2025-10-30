@@ -2,6 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Hero from "../hero";
 import AppList from "@/components/app-list";
 import ProfileOverviewCard from "@/components/profile-overview-card";
@@ -41,6 +42,15 @@ export default function DynamicReport() {
     totalShares: number;
   } | null>(null);
   const [profileScore, setProfileScore] = useState<number | null>(null);
+  const [topPosts, setTopPosts] = useState<Array<{
+    rank: number;
+    thumbnailUrl?: string;
+    caption?: string;
+    likes: number;
+    comments: number;
+    views: number;
+    engagementPct: number; // (likes + 3*comments) / views * 100
+  }>>([]);
 
   const reportId = parseInt(params.id as string);
   const profileUrlParam = searchParams.get("url");
@@ -81,6 +91,7 @@ export default function DynamicReport() {
           const posts = getPostsArray(postsData);
           const computed = computeMetrics(posts);
           setMetrics(computed);
+          setTopPosts(computeTopPosts(posts));
           const scoreFromApi: number | null = typeof creatorData?.profileScore === 'number' ? creatorData.profileScore : null;
           setProfileScore(scoreFromApi);
 
@@ -223,6 +234,78 @@ export default function DynamicReport() {
     };
   }
 
+  // Build Top 5 posts ranked by: (likes + 3 * comments) / views * 100
+  function computeTopPosts(posts: any[]) {
+    const normalizeCaption = (val: any): string | undefined => {
+      if (!val) return undefined;
+      if (typeof val === 'string') return val;
+      if (Array.isArray(val)) return val.filter(Boolean).map((v) => (typeof v === 'string' ? v : typeof v?.text === 'string' ? v.text : '')).join(' ').trim() || undefined;
+      if (typeof val === 'object') {
+        if (typeof val.text === 'string') return val.text;
+        if (typeof val.caption === 'string') return val.caption;
+        if (typeof val.title === 'string') return val.title;
+        if (typeof val?.node?.text === 'string') return val.node.text;
+      }
+      try { return String(val); } catch { return undefined; }
+    };
+
+    const normalized = posts.map((p: any) => {
+      const views =
+        Number(p?.view_count) ||
+        Number(p?.play_count) ||
+        Number(p?.video_view_count) ||
+        Number(p?.views) || 0;
+      const likes =
+        Number(p?.like_count) ||
+        Number(p?.edge_liked_by?.count) ||
+        Number(p?.likes) || 0;
+      const comments =
+        Number(p?.comment_count) ||
+        Number(p?.edge_media_to_comment?.count) ||
+        Number(p?.comments) || 0;
+
+      // Caption candidates across common shapes
+      const caption: string | undefined = normalizeCaption(
+        p?.caption ??
+        p?.title ??
+        p?.edge_media_to_caption?.edges?.[0]?.node?.text ??
+        p?.node?.edge_media_to_caption?.edges?.[0]?.node?.text ??
+        p?.caption_text ??
+        p?.text
+      );
+
+      // Thumbnail candidates (image or video poster)
+      const thumbCandidates: Array<string | undefined> = [
+        p?.thumbnail_src,
+        p?.display_url,
+        p?.display_src,
+        p?.thumbnail_url,
+        p?.image_versions2?.candidates?.[0]?.url,
+        p?.images?.standard_resolution?.url,
+        p?.node?.display_url,
+        p?.node?.thumbnail_resources?.[0]?.src,
+        p?.cover?.url,
+        p?.thumbnail,
+      ];
+      const thumbnailUrl = thumbCandidates.find((u) => typeof u === 'string' && u.length > 0);
+
+      const engagementPct = views > 0 ? ((likes + 3 * comments) / views) * 100 : 0;
+
+      return { likes, comments, views, caption, thumbnailUrl, engagementPct };
+    });
+
+    const withViews = normalized.filter((n) => n.views > 0);
+    const top5 = withViews
+      .sort((a, b) => b.engagementPct - a.engagementPct)
+      .slice(0, 5)
+      .map((item, idx) => ({
+        rank: idx + 1,
+        ...item,
+      }));
+
+    return top5;
+  }
+
   const getPlatformFromUrl = (url: string): string => {
     if (url.includes("instagram.com")) return "Instagram";
     if (url.includes("tiktok.com")) return "TikTok";
@@ -280,17 +363,33 @@ export default function DynamicReport() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top Performing Content</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top 5 Posts by Engagement</h3>
               <div className="space-y-3">
-                {reportData.analysis.topContent.map((content, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium">{content.type}</span>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">{content.views} views</p>
-                      <p className="text-sm text-green-600">{content.engagement} engagement</p>
+                {(topPosts && topPosts.length > 0 ? topPosts : []).map((post) => (
+                  <div key={post.rank} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 text-lg" aria-label={`Rank ${post.rank}`}>
+                      {post.rank === 1 ? '🥇 1' : post.rank === 2 ? '🥈 2' : post.rank === 3 ? '🥉 3' : `${post.rank}`}
+                    </div>
+                    <div className="relative h-12 w-12 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                      {post.thumbnailUrl ? (
+                        <Image src={post.thumbnailUrl} alt={post.caption || 'Post thumbnail'} fill sizes="48px" className="object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-gray-400">—</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate text-sm text-gray-800">{post.caption || 'No caption'}</div>
+                      <div className="mt-1 text-xs text-gray-600 flex gap-4">
+                        <span>{post.likes.toLocaleString()} likes</span>
+                        <span>{post.comments.toLocaleString()} comments</span>
+                        <span className="text-green-700 font-medium">{post.engagementPct.toFixed(2)}% engagement</span>
+                      </div>
                     </div>
                   </div>
                 ))}
+                {topPosts.length === 0 && (
+                  <div className="text-sm text-gray-600">No posts with views found to compute engagement.</div>
+                )}
               </div>
             </div>
             
