@@ -330,27 +330,42 @@ export default function DynamicReport() {
       {/* Profile Overview Card */}
       {profileOverview && (
         <div className="mx-auto max-w-6xl px-4 sm:px-6 mt-10">
-          <ProfileOverviewCard
-            avatarUrl={profileOverview.avatarUrl}
-            name={profileOverview.name}
-            username={profileOverview.username}
-            bio={profileOverview.bio}
-            isVerified={profileOverview.isVerified}
-            platform={reportData?.platform}
-          />
-          {/* Metrics Dashboard */}
-          {metrics && (
-            <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              <StatCard 
-                title="Profile Quality" 
-                value={typeof profileScore === 'number' ? String(profileScore) : 'N/A'}
-                suffix={typeof profileScore === 'number' ? '/100' : undefined}
-                className="bg-linear-to-t from-blue-600 to-blue-500 text-white border-blue-600/50"
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            <div className="lg:col-span-2 h-full">
+              <ProfileOverviewCard
+                avatarUrl={profileOverview.avatarUrl}
+                name={profileOverview.name}
+                username={profileOverview.username}
+                bio={profileOverview.bio}
+                isVerified={profileOverview.isVerified}
+                platform={reportData?.platform}
               />
+            </div>
+            {metrics && (
+              <div className="h-full flex flex-col gap-4">
+                <div className="flex-1">
+                  <StatCard 
+                    title="Profile Quality" 
+                    value={typeof profileScore === 'number' ? String(profileScore) : 'N/A'}
+                    suffix={typeof profileScore === 'number' ? '/100' : undefined}
+                    className="h-full bg-linear-to-t from-blue-600 to-blue-500 text-white border-blue-600/50"
+                  />
+                </div>
+                <div className="flex-1">
+                  <StatCard 
+                    title="Engagement rate" 
+                    value={metrics.engagementRatePct !== null ? `${metrics.engagementRatePct.toFixed(2)}%` : 'N/A'} 
+                    className="h-full"
+                    titleClassName="text-gray-800"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Metrics Dashboard (remaining) */}
+          {metrics && (
+            <div className="mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard title="Total publications" value={metrics.totalPublications.toLocaleString()} />
-              <StatCard title="Engagement rate" value={
-                metrics.engagementRatePct !== null ? `${metrics.engagementRatePct.toFixed(2)}%` : 'N/A'
-              } />
               <StatCard title="Total views" value={metrics.totalViews.toLocaleString()} />
               <StatCard title="Total likes" value={metrics.totalLikes.toLocaleString()} />
               <StatCard title="Total comments" value={metrics.totalComments.toLocaleString()} />
@@ -412,10 +427,10 @@ export default function DynamicReport() {
   );
 }
 
-function StatCard({ title, value, suffix, className }: { title: string; value: string; suffix?: string; className?: string }) {
+function StatCard({ title, value, suffix, className, titleClassName }: { title: string; value: string; suffix?: string; className?: string; titleClassName?: string }) {
   return (
     <div className={`rounded-xl p-5 shadow-md border ${className ? className : 'bg-gray-900 text-white border-gray-800'}`}>
-      <div className={`text-sm ${className ? 'text-white/90' : 'text-gray-300'}`}>{title}</div>
+      <div className={`text-sm ${titleClassName ? titleClassName : (className ? 'text-white/90' : 'text-gray-300')}`}>{title}</div>
       <div className="mt-2 text-2xl font-semibold tracking-tight">
         {value}
         {suffix && (

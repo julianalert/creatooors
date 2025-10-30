@@ -22,7 +22,7 @@ export default function ProfileOverviewCard({
 }: ProfileOverviewProps) {
   const [imgError, setImgError] = useState(false);
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 h-full">
       <div className="flex items-start gap-5 md:gap-6">
         <div className="relative h-16 w-16 md:h-20 md:w-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
           {avatarUrl && !imgError ? (
