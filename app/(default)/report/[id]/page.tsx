@@ -50,6 +50,7 @@ export default function DynamicReport() {
     comments: number;
     views: number;
     engagementPct: number; // (likes + 3*comments) / views * 100
+    type?: string;
   }>>([]);
 
   const reportId = parseInt(params.id as string);
@@ -236,6 +237,32 @@ export default function DynamicReport() {
 
   // Build Top 5 posts ranked by: (likes + 3 * comments) / views * 100
   function computeTopPosts(posts: any[]) {
+    const detectPublicationType = (p: any): string => {
+      const mediaType = (p?.media_type || p?.type || p?.__typename || '').toString().toLowerCase();
+      const productType = (p?.product_type || '').toString().toLowerCase();
+      const isVideo = Boolean(
+        p?.is_video ||
+        mediaType.includes('video') ||
+        productType === 'clips' ||
+        productType === 'igtv' ||
+        productType === 'reels' ||
+        productType === 'reel' ||
+        p?.video_duration ||
+        p?.video_versions
+      );
+      const isCarousel = Boolean(
+        mediaType.includes('carousel') ||
+        p?.carousel_media ||
+        p?.edge_sidecar_to_children ||
+        p?.children
+      );
+      if (isVideo) {
+        if (productType === 'clips' || productType === 'reel' || productType === 'reels') return 'reel';
+        return 'video';
+      }
+      if (isCarousel) return 'carousel';
+      return 'image';
+    };
     const normalizeCaption = (val: any): string | undefined => {
       if (!val) return undefined;
       if (typeof val === 'string') return val;
@@ -291,7 +318,8 @@ export default function DynamicReport() {
 
       const engagementPct = views > 0 ? ((likes + 3 * comments) / views) * 100 : 0;
 
-      return { likes, comments, views, caption, thumbnailUrl, engagementPct };
+      const type = detectPublicationType(p);
+      return { likes, comments, views, caption, thumbnailUrl, engagementPct, type };
     });
 
     const withViews = normalized.filter((n) => n.views > 0);
@@ -393,7 +421,14 @@ export default function DynamicReport() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="truncate text-sm text-gray-800">{post.caption || 'No caption'}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm text-gray-800">{post.caption || 'No caption'}</span>
+                        {post.type && (
+                          <span className="inline-flex items-center rounded-full bg-gray-200 text-gray-800 text-[10px] px-2 py-0.5 uppercase tracking-wide">
+                            {post.type}
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-1 text-xs text-gray-600 flex gap-4">
                         <span>{post.likes.toLocaleString()} likes</span>
                         <span>{post.comments.toLocaleString()} comments</span>
