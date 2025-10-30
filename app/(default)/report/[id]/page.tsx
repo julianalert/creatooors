@@ -102,42 +102,31 @@ export default function DynamicReport() {
           const platform = (creatorData?.platform as string) || (storedUrl ? getPlatformFromUrl(storedUrl) : (profileUrlParam ? getPlatformFromUrl(profileUrlParam) : "Unknown"));
           const effectiveProfileUrl = storedUrl || profileUrlParam || "";
           
-          // Initial report data
-          const initialData: ReportData = {
+          // Set report data with completed status immediately
+          const reportData: ReportData = {
             id: reportId,
             profileUrl: effectiveProfileUrl,
             platform,
-            status: "analyzing"
+            status: "completed",
+            analysis: {
+              followers: Math.floor(Math.random() * 1000000) + 10000,
+              engagement: Math.floor(Math.random() * 10) + 1,
+              topContent: [
+                { type: "video", views: "2.3M", engagement: "8.5%" },
+                { type: "image", views: "1.8M", engagement: "6.2%" },
+                { type: "video", views: "1.5M", engagement: "7.1%" }
+              ],
+              recommendations: [
+                "Post more content during peak hours (6-9 PM)",
+                "Use trending hashtags in your niche",
+                "Engage more with your audience through comments",
+                "Create more video content - it performs 40% better"
+              ]
+            }
           };
           
-          setReportData(initialData);
-          // Stop loading immediately; update analysis in the background
+          setReportData(reportData);
           setIsLoading(false);
-
-          // Simulate analysis process (in real app, this would call your API)
-          setTimeout(() => {
-            const completedData: ReportData = {
-              ...initialData,
-              status: "completed",
-              analysis: {
-                followers: Math.floor(Math.random() * 1000000) + 10000,
-                engagement: Math.floor(Math.random() * 10) + 1,
-                topContent: [
-                  { type: "video", views: "2.3M", engagement: "8.5%" },
-                  { type: "image", views: "1.8M", engagement: "6.2%" },
-                  { type: "video", views: "1.5M", engagement: "7.1%" }
-                ],
-                recommendations: [
-                  "Post more content during peak hours (6-9 PM)",
-                  "Use trending hashtags in your niche",
-                  "Engage more with your audience through comments",
-                  "Create more video content - it performs 40% better"
-                ]
-              }
-            };
-            
-            setReportData(completedData);
-          }, 3000); // 3 second delay to simulate analysis
         } catch (error) {
           console.error("Error generating report:", error);
           setReportData({
