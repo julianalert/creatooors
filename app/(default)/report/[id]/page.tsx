@@ -52,6 +52,7 @@ export default function DynamicReport() {
     engagementPct: number; // (likes + 3*comments) / views * 100
     type?: string;
   }>>([]);
+  
 
   const reportId = parseInt(params.id as string);
   const profileUrlParam = searchParams.get("url");
@@ -90,9 +91,9 @@ export default function DynamicReport() {
           // Compute metrics from posts_data
           const postsData = creatorData?.postsData || {};
           const posts = getPostsArray(postsData);
-          const computed = computeMetrics(posts);
+          const computed = computeMetrics(filterReels(posts));
           setMetrics(computed);
-          setTopPosts(computeTopPosts(posts));
+          setTopPosts(computeTopPosts(filterReels(posts)));
           const scoreFromApi: number | null = typeof creatorData?.profileScore === 'number' ? creatorData.profileScore : null;
           setProfileScore(scoreFromApi);
 
@@ -153,6 +154,40 @@ export default function DynamicReport() {
     }
   }, [reportId]);
 
+  
+
+  // Publication type detection helpers
+  function getPublicationType(p: any): 'reel' | 'video' | 'carousel' | 'image' {
+    const mediaType = (p?.media_type || p?.type || p?.__typename || '').toString().toLowerCase();
+    const productType = (p?.product_type || '').toString().toLowerCase();
+    const isVideo = Boolean(
+      p?.is_video ||
+      mediaType.includes('video') ||
+      productType === 'clips' ||
+      productType === 'igtv' ||
+      productType === 'reels' ||
+      productType === 'reel' ||
+      p?.video_duration ||
+      p?.video_versions
+    );
+    const isCarousel = Boolean(
+      mediaType.includes('carousel') ||
+      p?.carousel_media ||
+      p?.edge_sidecar_to_children ||
+      p?.children
+    );
+    if (isVideo) {
+      if (productType === 'clips' || productType === 'reel' || productType === 'reels') return 'reel';
+      return 'video';
+    }
+    if (isCarousel) return 'carousel';
+    return 'image';
+  }
+
+  function filterReels(posts: any[]): any[] {
+    return posts.filter((p) => getPublicationType(p) === 'reel');
+  }
+
   // Try to normalize various possible post shapes
   function getPostsArray(postsData: any): any[] {
     if (!postsData) return [];
@@ -167,6 +202,8 @@ export default function DynamicReport() {
   }
 
   function computeMetrics(posts: any[]) {
+    // Ensure we only compute on reels
+    const reels = filterReels(posts);
     let totalPublications = 0;
     let totalViews = 0;
     let totalLikes = 0;
@@ -175,8 +212,8 @@ export default function DynamicReport() {
     let totalShares = 0;
     let viewBearingPosts = 0;
 
-    for (const p of posts) {
-      // Count all publications (posts), not just videos
+    for (const p of reels) {
+      // Count reels only
       totalPublications += 1;
 
       const views =
@@ -217,12 +254,13 @@ export default function DynamicReport() {
     }
 
     let engagementRatePct: number | null = null;
-    const totalEngagement = totalLikes + totalComments + totalBookmarks;
+    // Use same formula as top performing reels: (likes + 3 * comments) / views * 100
+    const totalEngagement = totalLikes + 3 * totalComments;
     if (totalViews > 0) {
       engagementRatePct = (totalEngagement / totalViews) * 100;
-    } else if (posts.length > 0) {
+    } else if (reels.length > 0) {
       // Fallback: average per post (no views available)
-      engagementRatePct = (totalEngagement / posts.length) || 0;
+      engagementRatePct = (totalEngagement / reels.length) || 0;
     }
 
     return {
@@ -235,34 +273,10 @@ export default function DynamicReport() {
     };
   }
 
+  
+
   // Build Top 5 posts ranked by: (likes + 3 * comments) / views * 100
   function computeTopPosts(posts: any[]) {
-    const detectPublicationType = (p: any): string => {
-      const mediaType = (p?.media_type || p?.type || p?.__typename || '').toString().toLowerCase();
-      const productType = (p?.product_type || '').toString().toLowerCase();
-      const isVideo = Boolean(
-        p?.is_video ||
-        mediaType.includes('video') ||
-        productType === 'clips' ||
-        productType === 'igtv' ||
-        productType === 'reels' ||
-        productType === 'reel' ||
-        p?.video_duration ||
-        p?.video_versions
-      );
-      const isCarousel = Boolean(
-        mediaType.includes('carousel') ||
-        p?.carousel_media ||
-        p?.edge_sidecar_to_children ||
-        p?.children
-      );
-      if (isVideo) {
-        if (productType === 'clips' || productType === 'reel' || productType === 'reels') return 'reel';
-        return 'video';
-      }
-      if (isCarousel) return 'carousel';
-      return 'image';
-    };
     const normalizeCaption = (val: any): string | undefined => {
       if (!val) return undefined;
       if (typeof val === 'string') return val;
@@ -276,7 +290,8 @@ export default function DynamicReport() {
       try { return String(val); } catch { return undefined; }
     };
 
-    const normalized = posts.map((p: any) => {
+    // Only consider reels for ranking
+    const normalized = filterReels(posts).map((p: any) => {
       const views =
         Number(p?.view_count) ||
         Number(p?.play_count) ||
@@ -318,7 +333,7 @@ export default function DynamicReport() {
 
       const engagementPct = views > 0 ? ((likes + 3 * comments) / views) * 100 : 0;
 
-      const type = detectPublicationType(p);
+      const type = getPublicationType(p);
       return { likes, comments, views, caption, thumbnailUrl, engagementPct, type };
     });
 
@@ -393,10 +408,43 @@ export default function DynamicReport() {
           {/* Metrics Dashboard (remaining) */}
           {metrics && (
             <div className="mt-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Total publications" value={metrics.totalPublications.toLocaleString()} />
-              <StatCard title="Total views" value={metrics.totalViews.toLocaleString()} />
-              <StatCard title="Total likes" value={metrics.totalLikes.toLocaleString()} />
-              <StatCard title="Total comments" value={metrics.totalComments.toLocaleString()} />
+              <StatCard 
+                title="Total reels" 
+                value={metrics.totalPublications.toLocaleString()} 
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                }
+              />
+              <StatCard 
+                title="Total views" 
+                value={metrics.totalViews.toLocaleString()} 
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                }
+              />
+              <StatCard 
+                title="Total likes" 
+                value={metrics.totalLikes.toLocaleString()} 
+                icon={
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                }
+              />
+              <StatCard 
+                title="Total comments" 
+                value={metrics.totalComments.toLocaleString()} 
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                }
+              />
             </div>
           )}
         </div>
@@ -406,7 +454,7 @@ export default function DynamicReport() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top 5 Posts by Engagement</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top 5 Reels by Engagement</h3>
               <div className="space-y-3">
                 {(topPosts && topPosts.length > 0 ? topPosts : []).map((post) => (
                   <div key={post.rank} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -462,15 +510,25 @@ export default function DynamicReport() {
   );
 }
 
-function StatCard({ title, value, suffix, className, titleClassName }: { title: string; value: string; suffix?: string; className?: string; titleClassName?: string }) {
+function StatCard({ title, value, suffix, className, titleClassName, icon }: { title: string; value: string; suffix?: string; className?: string; titleClassName?: string; icon?: React.ReactNode }) {
+  const hasCustomBg = Boolean(className);
   return (
-    <div className={`rounded-xl p-5 shadow-md border ${className ? className : 'bg-gray-900 text-white border-gray-800'}`}>
-      <div className={`text-sm ${titleClassName ? titleClassName : (className ? 'text-white/90' : 'text-gray-300')}`}>{title}</div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight">
-        {value}
-        {suffix && (
-          <span className="ml-1 align-baseline text-base font-medium opacity-90">{suffix}</span>
-        )}
+    <div className={`rounded-xl p-5 shadow-md border flex gap-4 ${className ? className : 'bg-gray-900 text-white border-gray-800'}`}>
+      {icon && (
+        <div className={`flex-shrink-0 w-14 h-14 rounded-lg flex items-center justify-center ${hasCustomBg ? 'bg-white/10' : 'bg-gray-800'}`}>
+          <div className={`${hasCustomBg ? 'text-white' : 'text-gray-300'} [&_svg]:w-6 [&_svg]:h-6`}>
+            {icon}
+          </div>
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className={`text-sm ${titleClassName ? titleClassName : (className ? 'text-white/90' : 'text-gray-300')}`}>{title}</div>
+        <div className="mt-1 text-2xl font-semibold tracking-tight">
+          {value}
+          {suffix && (
+            <span className="ml-1 align-baseline text-base font-medium opacity-90">{suffix}</span>
+          )}
+        </div>
       </div>
     </div>
   );
