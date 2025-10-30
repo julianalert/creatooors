@@ -40,6 +40,7 @@ export default function DynamicReport() {
     totalComments: number;
     totalShares: number;
   } | null>(null);
+  const [profileScore, setProfileScore] = useState<number | null>(null);
 
   const reportId = parseInt(params.id as string);
   const profileUrlParam = searchParams.get("url");
@@ -80,6 +81,8 @@ export default function DynamicReport() {
           const posts = getPostsArray(postsData);
           const computed = computeMetrics(posts);
           setMetrics(computed);
+          const scoreFromApi: number | null = typeof creatorData?.profileScore === 'number' ? creatorData.profileScore : null;
+          setProfileScore(scoreFromApi);
 
           // Determine platform from stored creator URL or param fallback
           const storedUrl: string | undefined = creatorData?.url;
@@ -255,6 +258,12 @@ export default function DynamicReport() {
           {/* Metrics Dashboard */}
           {metrics && (
             <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <StatCard 
+                title="Profile Quality" 
+                value={typeof profileScore === 'number' ? String(profileScore) : 'N/A'}
+                suffix={typeof profileScore === 'number' ? '/100' : undefined}
+                className="bg-linear-to-t from-blue-600 to-blue-500 text-white border-blue-600/50"
+              />
               <StatCard title="Total publications" value={metrics.totalPublications.toLocaleString()} />
               <StatCard title="Engagement rate" value={
                 metrics.engagementRatePct !== null ? `${metrics.engagementRatePct.toFixed(2)}%` : 'N/A'
@@ -262,7 +271,6 @@ export default function DynamicReport() {
               <StatCard title="Total views" value={metrics.totalViews.toLocaleString()} />
               <StatCard title="Total likes" value={metrics.totalLikes.toLocaleString()} />
               <StatCard title="Total comments" value={metrics.totalComments.toLocaleString()} />
-              <StatCard title="Total shares" value={metrics.totalShares.toLocaleString()} />
             </div>
           )}
         </div>
@@ -305,11 +313,16 @@ export default function DynamicReport() {
   );
 }
 
-function StatCard({ title, value }: { title: string; value: string }) {
+function StatCard({ title, value, suffix, className }: { title: string; value: string; suffix?: string; className?: string }) {
   return (
-    <div className="rounded-xl bg-gray-900 text-white p-5 shadow-md border border-gray-800">
-      <div className="text-sm text-gray-300">{title}</div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+    <div className={`rounded-xl p-5 shadow-md border ${className ? className : 'bg-gray-900 text-white border-gray-800'}`}>
+      <div className={`text-sm ${className ? 'text-white/90' : 'text-gray-300'}`}>{title}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">
+        {value}
+        {suffix && (
+          <span className="ml-1 align-baseline text-base font-medium opacity-90">{suffix}</span>
+        )}
+      </div>
     </div>
   );
 }
