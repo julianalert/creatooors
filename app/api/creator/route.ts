@@ -22,9 +22,9 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 const SCRAPE_CREATORS_API_KEY = process.env.SCRAPE_CREATORS_API_KEY!
 const SCRAPE_CREATORS_BASE_URL = 'https://api.scrapecreators.com'
 
+// Do not crash build if env is missing; fail requests at runtime instead
 if (!SCRAPE_CREATORS_API_KEY) {
-  console.error('Missing SCRAPE_CREATORS_API_KEY environment variable')
-  throw new Error('ScrapeCreators configuration is incomplete')
+  console.warn('SCRAPE_CREATORS_API_KEY is not set. Scraping will be disabled until it is configured.')
 }
 
 // Utility functions for URL parsing and platform detection

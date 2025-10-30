@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 
 interface ProfileOverviewProps {
   avatarUrl?: string;
@@ -19,12 +20,20 @@ export default function ProfileOverviewCard({
   isVerified,
   platform,
 }: ProfileOverviewProps) {
+  const [imgError, setImgError] = useState(false);
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
       <div className="flex items-start gap-5 md:gap-6">
         <div className="relative h-16 w-16 md:h-20 md:w-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={name || username || "Avatar"} className="h-full w-full object-cover" />
+          {avatarUrl && !imgError ? (
+            <Image
+              src={avatarUrl}
+              alt={name || username || "Avatar"}
+              fill
+              sizes="80px"
+              className="object-cover"
+              onError={() => setImgError(true)}
+            />
           ) : (
             <div className="h-full w-full flex items-center justify-center text-gray-400">?
             </div>

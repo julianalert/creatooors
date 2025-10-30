@@ -78,7 +78,9 @@ export default function DynamicReport() {
           };
           
           setReportData(initialData);
-          
+          // Stop loading immediately; update analysis in the background
+          setIsLoading(false);
+
           // Simulate analysis process (in real app, this would call your API)
           setTimeout(() => {
             const completedData: ReportData = {
@@ -102,7 +104,6 @@ export default function DynamicReport() {
             };
             
             setReportData(completedData);
-            setIsLoading(false);
           }, 3000); // 3 second delay to simulate analysis
         } catch (error) {
           console.error("Error generating report:", error);
@@ -207,7 +208,7 @@ export default function DynamicReport() {
           </div>
         </div>
       )}
-      <AppList />
+      {/* <AppList /> */}
     </>
   );
 }
