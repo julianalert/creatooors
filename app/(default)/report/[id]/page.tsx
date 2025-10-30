@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Hero from "../hero";
 import AppList from "@/components/app-list";
+import ProfileOverviewCard from "@/components/profile-overview-card";
 
 interface ReportData {
   id: number;
@@ -23,6 +24,13 @@ export default function DynamicReport() {
   const searchParams = useSearchParams();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileOverview, setProfileOverview] = useState<{
+    avatarUrl?: string;
+    name?: string;
+    username?: string;
+    bio?: string;
+    isVerified?: boolean;
+  } | null>(null);
 
   const reportId = parseInt(params.id as string);
   const profileUrl = searchParams.get("url");
@@ -42,6 +50,21 @@ export default function DynamicReport() {
           }
 
           const creatorData = await response.json();
+          // Extract profile basics defensively from returned profileData
+          const pd = creatorData?.profileData || {};
+          // Support shapes: { user: {...} } or { data: { user: {...} } }
+          const user = (pd && (pd.user || pd.data?.user || pd.data)) || pd;
+          const avatarUrl =
+            user?.profile_pic_url ||
+            user?.hd_profile_pic_url_info?.url ||
+            user?.profile_pic_url_hd ||
+            user?.profile_pic_url_info?.url ||
+            undefined;
+          const name = user?.full_name || user?.name || user?.username;
+          const username = user?.username;
+          const bio = user?.biography || user?.bio;
+          const isVerified = Boolean(user?.is_verified);
+          setProfileOverview({ avatarUrl, name, username, bio, isVerified });
 
           // Determine platform from URL
           const platform = getPlatformFromUrl(profileUrl);
@@ -118,6 +141,19 @@ export default function DynamicReport() {
   return (
     <>
       <Hero reportData={reportData} isLoading={isLoading} />
+      {/* Profile Overview Card */}
+      {profileOverview && (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 mt-10">
+          <ProfileOverviewCard
+            avatarUrl={profileOverview.avatarUrl}
+            name={profileOverview.name}
+            username={profileOverview.username}
+            bio={profileOverview.bio}
+            isVerified={profileOverview.isVerified}
+            platform={reportData?.platform}
+          />
+        </div>
+      )}
       {reportData.status === "completed" && reportData.analysis && (
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">

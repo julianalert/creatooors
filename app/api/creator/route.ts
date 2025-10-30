@@ -19,8 +19,13 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 })
 
 // ScrapeCreators API configuration
-const SCRAPE_CREATORS_API_KEY = 'vTJo7JqIruWhfdZ73IwPbmRG49z1'
+const SCRAPE_CREATORS_API_KEY = process.env.SCRAPE_CREATORS_API_KEY!
 const SCRAPE_CREATORS_BASE_URL = 'https://api.scrapecreators.com'
+
+if (!SCRAPE_CREATORS_API_KEY) {
+  console.error('Missing SCRAPE_CREATORS_API_KEY environment variable')
+  throw new Error('ScrapeCreators configuration is incomplete')
+}
 
 // Utility functions for URL parsing and platform detection
 function getPlatformFromUrl(url: string): 'instagram' | 'tiktok' | 'youtube' | null {
@@ -59,11 +64,18 @@ function extractUsernameFromUrl(url: string, platform: string): string | null {
 }
 
 // ScrapeCreators API functions
+function fetchWithTimeout(resource: string, options: { method?: string; headers?: Record<string, string>; body?: any; timeoutMs?: number } = {}) {
+  const { timeoutMs = 15000, ...rest } = options
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(resource, { ...rest, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 async function scrapeTikTokProfile(username: string) {
   const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/tiktok/profile?handle=${encodeURIComponent(username)}`, {
     method: 'GET',
     headers: {
-      'X-API-Key': SCRAPE_CREATORS_API_KEY,
+      'x-api-key': SCRAPE_CREATORS_API_KEY,
     }
   })
   
@@ -79,7 +91,7 @@ async function scrapeInstagramProfile(username: string) {
   const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/instagram/profile`, {
     method: 'POST',
     headers: {
-      'X-API-Key': SCRAPE_CREATORS_API_KEY,
+      'x-api-key': SCRAPE_CREATORS_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -95,11 +107,33 @@ async function scrapeInstagramProfile(username: string) {
   return await response.json()
 }
 
+async function scrapeInstagramPosts(username: string, params: { nextMaxId?: string; trim?: boolean } = {}) {
+  const url = new URL(`${SCRAPE_CREATORS_BASE_URL}/v2/instagram/user/posts`)
+  url.searchParams.set('handle', username)
+  if (params.nextMaxId) url.searchParams.set('next_max_id', params.nextMaxId)
+  if (params.trim === true) url.searchParams.set('trim', 'true')
+
+  const response = await fetchWithTimeout(url.toString(), {
+    method: 'GET',
+    headers: {
+      'x-api-key': SCRAPE_CREATORS_API_KEY,
+    },
+    timeoutMs: 20000,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Instagram posts API error: ${response.status} - ${errorText}`)
+  }
+
+  return await response.json()
+}
+
 async function scrapeYouTubeChannel(username: string) {
   const response = await fetch(`${SCRAPE_CREATORS_BASE_URL}/v1/youtube/channel?handle=${encodeURIComponent(username)}`, {
     method: 'GET',
     headers: {
-      'X-API-Key': SCRAPE_CREATORS_API_KEY,
+      'x-api-key': SCRAPE_CREATORS_API_KEY,
     }
   })
   
@@ -208,12 +242,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If Instagram, fetch recent posts and persist in posts_data
+    let postsData: any = null
+    let postsError: string | null = null
+    if (platform === 'instagram') {
+      const username = extractUsernameFromUrl(trimmedUrl, 'instagram')
+      if (username) {
+        try {
+          postsData = await scrapeInstagramPosts(username, { trim: true })
+        } catch (err) {
+          postsError = err instanceof Error ? err.message : 'Unknown posts scraping error'
+          console.error('Failed to fetch Instagram posts:', err)
+        }
+
+        if (postsData) {
+          const { error: postsUpdateError } = await supabaseAdmin
+            .from('creator')
+            .update({ posts_data: postsData })
+            .eq('id', data.id)
+          if (postsUpdateError) {
+            console.error('Failed to update creator with posts_data:', postsUpdateError)
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       id: data.id,
       url: data.url,
       platform: platform,
       profileData: profileData,
+      postsData: postsData,
       scrapeError: scrapeError,
+      postsError: postsError,
       message: profileData ? 'Creator saved and profile scraped successfully' : 'Creator saved but profile scraping failed'
     })
 
